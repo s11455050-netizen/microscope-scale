@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顯微鏡與生物尺度大挑戰</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent: #38bdf8;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin: 5px 0 10px 0;
+            font-size: 1.8rem;
+            text-align: center;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: var(--panel-bg);
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .timer {
+            color: #f59e0b;
+        }
+
+        .quiz-card {
+            background: var(--panel-bg);
+            border: 2px solid #475569;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: #334155;
+            border: 2px solid #475569;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #475569;
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.correct {
+            background: var(--success) !important;
+            border-color: #15803d !important;
+        }
+
+        .option-btn.wrong {
+            background: var(--danger) !important;
+            border-color: #b91c1c !important;
+        }
+
+        /* 結算畫面 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            border: 2px solid #475569;
+            padding: 35px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #0ea5e9; }
+    </style>
+</head>
+<body>
+
+    <h1>📏 顯微鏡與生物尺度大挑戰</h1>
+
+    <div class="game-header">
+        <span id="progress-indicator">剩餘待答題目：10 題</span>
+        <span>計時：<span id="timer-display" class="timer">00:00</span></span>
+    </div>
+
+    <div class="quiz-card">
+        <div id="question-box" class="question-text">載入中...</div>
+        <div id="options-box" class="options-list"></div>
+    </div>
+
+    <!-- 通關結算視窗 -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color: #34d399;">🏆 挑戰成功！</h2>
+            <p style="font-size: 1.1rem; color: #cbd5e1;">你已成功把所有錯題全部訂正並答對！</p>
+            <p style="font-size: 1.4rem; font-weight: bold; margin: 20px 0;">總共花費時間：<span id="final-time" style="color: #f59e0b;">00:00</span></p>
+            <button class="btn" onclick="startGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        const originalQuestions = [
+            {
+                q: "在生物學中，長度單位的換算關係何者正確？",
+                options: ["1公分 = 10毫米", "1毫米 = 10微米", "1公分 = 1000微米", "1微米 = 1000毫米"],
+                answer: 0
+            },
+            {
+                q: "如果要測量一隻普通螞蟻的體長，使用下列哪一種單位最為適合？",
+                options: ["微米 (μm)", "毫米 (mm)", "奈米 (nm)", "公尺 (m)"],
+                answer: 1
+            },
+            {
+                q: "觀察一般植物細胞（如洋蔥表皮細胞）的大小，通常使用下列哪一種單位來表示最恰當？",
+                options: ["微米 (μm)", "公分 (cm)", "公里 (km)", "公尺 (m)"],
+                answer: 0
+            },
+            {
+                q: "關於顯微鏡的比較，下列敘述何者正確？",
+                options: [
+                    "複式顯微鏡可以看到比電子顯微鏡更小的構造", 
+                    "電子顯微鏡利用電子束成像，可以觀察到細胞內部的微小細節（如粒線體內部、核糖體等）", 
+                    "電子顯微鏡看到的影像一定是彩色的", 
+                    "複式顯微鏡的放大倍率一定比電子顯微鏡大"
+                ],
+                answer: 1
+            },
+            {
+                q: "下列哪一項生物構造的體積或長度最小，必須使用「電子顯微鏡」才有機會看得清楚？",
+                options: ["人的口腔皮膜細胞", "草履蟲", "葉綠體或粒線體的細微構造", "蛙的紅血球"],
+                answer: 2
+            },
+            {
+                q: "1公分 (cm) 等於多少微米 (μm)？",
+                options: ["100 微米", "1,000 微米", "10,000 微米", "1,000,000 微米"],
+                answer: 2
+            },
+            {
+                q: "如果我們要測量人的身高，最適合的單位是？",
+                options: ["微米", "毫米", "公分", "奈米"],
+                answer: 2
+            },
+            {
+                q: "關於「微米 (μm)」與「毫米 (mm)」的關係，下列敘述何者正確？",
+                options: ["1 毫米 = 1,000 微米", "1 微米 = 1,000 毫米", "1 毫米 = 100 微米", "1 微米 = 100 毫米"],
+                answer: 0
+            },
+            {
+                q: "細胞內的微小構造（例如細胞核內的染色體、粒線體）其大小通常在什麼範圍？",
+                options: ["幾公分到幾公尺", "幾公釐(毫米)左右", "幾微米左右", "幾公里"],
+                answer: 2
+            },
+            {
+                q: "為什麼科學家要發明與使用「電子顯微鏡」？",
+                options: [
+                    "因為它比較便宜且攜帶方便", 
+                    "因為生物細胞太大，需要電子顯微鏡來縮小觀看", 
+                    "因為它的放大倍率極高，能看清複式顯微鏡無法解析的極微小細胞構造", 
+                    "因為它不需要任何電力"
+                ],
+                answer: 2
+            }
+        ];
+
+        let activeQueue = [];
+        let startTime = null;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let isGameFinished = false;
+
+        const questionBox = document.getElementById('question-box');
+        const optionsBox = document.getElementById('options-box');
+        const progressIndicator = document.getElementById('progress-indicator');
+        const timerDisplay = document.getElementById('timer-display');
+        const resultModal = document.getElementById('result-modal');
+        const finalTime = document.getElementById('final-time');
+
+        function startGame() {
+            // 複製一份題庫作為遊戲進行中的隊列
+            activeQueue = [...originalQuestions];
+            secondsElapsed = 0;
+            isGameFinished = false;
+            resultModal.style.display = 'none';
+            timerDisplay.innerText = "00:00";
+            
+            if (timerInterval) clearInterval(timerInterval);
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+
+            loadQuestion();
+        }
+
+        function updateTimer() {
+            if (isGameFinished) return;
+            secondsElapsed = Math.floor((Date.now() - startTime) / 1000);
+            let mins = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+            let secs = (secondsElapsed % 60).toString().padStart(2, '0');
+            timerDisplay.innerText = `${mins}:${secs}`;
+        }
+
+        function loadQuestion() {
+            if (activeQueue.length === 0) {
+                endGame();
+                return;
+            }
+
+            progressIndicator.innerText = `剩餘待答題目：${activeQueue.length} 題`;
+            const q = activeQueue[0]; // 拿取隊列第一題
+            questionBox.innerText = q.q;
+            optionsBox.innerHTML = '';
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.classList.add('option-btn');
+                btn.innerText = `${['A', 'B', 'C', 'D'][idx]}. ${opt}`;
+                btn.onclick = () => checkAnswer(idx, q.answer, btn);
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, correct, btn) {
+            const allBtns = optionsBox.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            const currentQ = activeQueue[0];
+
+            if (selected === correct) {
+                btn.classList.add('correct');
+                setTimeout(() => {
+                    // 答對了，從隊列移除
+                    activeQueue.shift();
+                    loadQuestion();
+                }, 800);
+            } else {
+                btn.classList.add('wrong');
+                allBtns[correct].classList.add('correct');
+                setTimeout(() => {
+                    // 答錯了，移到隊列最後面重考
+                    activeQueue.shift();
+                    activeQueue.push(currentQ);
+                    alert("答錯囉！這題已被移到隊列最後面，等一下會再考一次！");
+                    loadQuestion();
+                }, 1000);
+            }
+        }
+
+        function endGame() {
+            isGameFinished = true;
+            clearInterval(timerInterval);
+            let mins = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+            let secs = (secondsElapsed % 60).toString().padStart(2, '0');
+            finalTime.innerText = `${mins}:${secs}`;
+            resultModal.style.display = 'flex';
+        }
+
+        // 自動開始遊戲
+        startGame();
+    </script>
+</body>
+</html>
